@@ -1,4 +1,4 @@
-cff-version: 1.2.0
+﻿cff-version: 1.2.0
 message: "If you use this software, please cite both the software archive and the associated article."
 title: "Failure-Mode Diagnostics for Sparse Discovery of Nonlinear Dynamics under Low-Data Conditions (reproducibility package)"
 type: software
@@ -13,7 +13,7 @@ version: 1.0.0
 date-released: "REPLACE-RELEASE-DATE"
 license: MIT
 # repository-code: replace with the public GitHub URL once the repository is created
-repository-code: "https://github.com/REPLACE-USERNAME/REPLACE-REPO"
+repository-code: "https://github.com/math2ai-yonsei/failure-mode-diagnostics-sparse-discovery"
 # doi: replace with the Zenodo concept/version DOI once the release is archived
 doi: "10.5281/zenodo.REPLACE"
 keywords:

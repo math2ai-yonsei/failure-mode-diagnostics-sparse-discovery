@@ -1,0 +1,48 @@
+# Gate2 Cart-Pole Augmentation Experiment Configuration
+# Physics-consistent augmentation (IC/param jitter + re-simulation)
+
+# Dataset Settings
+dataset_version: cartpole_ood_v1
+system: cartpole
+
+# Experiment Settings
+n_train: 10           # Number of original training trajectories
+seed: 0               # Random seed for reproducibility
+track: standardized   # 'standardized' (Savgol dx) or 'author_recommended' (analytic dx)
+note: aug             # Note for run_id
+
+# Augmentation Settings
+aug_method: physics_resim     # Method: physics_resim (IC/param jitter + re-simulation)
+aug_ratio: 1.0                # n_aug = n_train * aug_ratio (1.0 = double the data)
+aug_seed: null                # If null, uses experiment seed
+jitter_mode: both             # 'ic_only', 'param_only', 'both', 'random'
+ic_std_scale: 1.0             # Scale factor for IC jitter std
+param_rel_std_scale: 1.0      # Scale factor for param jitter relative std
+
+# E-SINDy Settings (passed to Gate1 runner)
+n_bootstrap: 20               # Number of bootstrap samples
+thresholds:                   # Threshold grid for sweep
+  - 0.0
+  - 0.0001
+  - 0.0005
+  - 0.001
+  - 0.005
+  - 0.01
+  - 0.02
+  - 0.05
+
+# SINDy Library Settings
+library_config: gate0_min     # Library configuration
+
+# Optimizer Settings
+ridge_alpha: 0.0              # Ridge regularization (0 = no regularization)
+
+# Final Fit Settings
+final_fit_split: train        # 'train' or 'train_val'
+
+# Gate1 Baseline (optional, for delta computation)
+gate1_baseline_run_id: null   # Set to compare with specific Gate1 run
+
+# Fixed Settings (do not modify)
+gate: gate2
+method: physics_resim

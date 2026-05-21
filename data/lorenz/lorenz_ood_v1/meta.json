@@ -1,0 +1,30 @@
+{
+  "system": "lorenz",
+  "dataset_version": "lorenz_ood_v1",
+  "state_dim": 3,
+  "input_dim": 0,
+  "n_train": 5,
+  "n_val": 5,
+  "n_test": 15,
+  "T_steps": 501,
+  "dt": 0.01,
+  "train_rho": [
+    28.0
+  ],
+  "val_rho": [
+    28.0
+  ],
+  "test_rho": [
+    28.0
+  ],
+  "sigma": 10.0,
+  "beta_approx": 2.6667,
+  "beta_exact": "8/3",
+  "master_seed": 42,
+  "noise_std_fraction": 0.05,
+  "savgol_window": 7,
+  "savgol_polyorder": 3,
+  "dx_source": "savgol_from_noisy_x",
+  "created_at": "2026-03-05T20:04:13.643196",
+  "runner": "experiments/run_lorenz_gate.py"
+}

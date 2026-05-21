@@ -1,0 +1,179 @@
+# =============================================================================
+# Silverbox System Configuration
+# =============================================================================
+# Model: Non-linear electronic circuit (Duffing oscillator implementation)
+# State: [x1=y, x2=dy/dt]  (x1: output voltage, x2: SavGol velocity estimate)
+# Input: [u] (excitation voltage — multisine in real data)
+#
+# Physical system: Electronic Duffing oscillator
+#   ẍ + (-c)*ẋ + (-k)*x + (-k3)*x³ = b*u
+#   Equivalently: ẍ = k*x + k3*x³ + c*ẋ + b*u
+#
+# Reference: Wigren, T. & Schoukens, J. (2013). Three free data sets for
+#   development and benchmarking in nonlinear system identification.
+#   ECC 2013, pp.2933-2938.
+#
+# Data source: nonlinear_benchmarks Python package (SNLS80mV.mat)
+#   sampling_time = 1/610.35 s ≈ 0.001638 s
+#   train_val: multisine excitation, 65062 samples (106.6 s)
+#   test: (test_multisine, test_arrow_full, test_arrow_no_extrapolation)
+#
+# Teacher Duffing parameters (exploration-fixed SSOT — NOT re-fitted at runtime):
+#   k  = -93282.91   (linear stiffness; negative → restoring)
+#   k3 = -44580.43   (cubic stiffness; negative → hardening)
+#   c  = -2.9527     (damping; negative coefficient → positive damping) ✅
+#   b  =  3100.43    (input gain)
+#   Provenance: least-squares fit on 5000 pts from full signal, 2026-03-10 exploration.
+#   n_train=3-level re-fitting is DISABLED (numerically unstable; c sign can flip).
+#
+# Runtime baseline (n_train=3, Gate4e-2):
+#   κ = 3.814, failure_mode = mixed
+#   fragile_pairs: [[0,1] const-spurious, [3,1] x1²-spurious, [6,1] x1³-recall]
+#   score_aligned = −delta_raw (precision-collapse dominant: x1² z=11.7 >> x1³ z=0.02)
+# =============================================================================
+
+system_name: silverbox
+system_type: forced_ode  # External excitation (multisine input u)
+state_dim: 2             # [x1=y (V), x2=dy/dt (V/s)]
+input_dim: 1             # [u] forcing voltage (V)
+
+# -----------------------------------------------------------------------------
+# State Definition
+# -----------------------------------------------------------------------------
+states:
+  - index: 0
+    name: x1
+    unit: V
+    description: "Output voltage y(t) — measured directly"
+  - index: 1
+    name: x2
+    unit: V/s
+    description: "Velocity dy/dt — estimated via Savitzky-Golay filter"
+
+inputs:
+  - index: 0
+    name: u
+    unit: V
+    description: "Excitation voltage (multisine in measurement; zero in teacher)"
+
+# -----------------------------------------------------------------------------
+# Physical Parameters — Duffing EOM fit (SSOT — hardcoding forbidden)
+# ẋ2 = k*x1 + k3*x1³ + c*x2 + b*u
+# -----------------------------------------------------------------------------
+physics:
+  k: -93282.9087    # Linear stiffness coefficient (1/s²)
+  k3: -44580.4296   # Cubic stiffness coefficient (1/(V²·s²))
+  c: -2.9527        # Damping coefficient (1/s); c < 0 → positive damping ✅
+  b: 3100.4267      # Input voltage gain (V/(V·s²) = 1/s²)
+  # Kinematic identity: ẋ1 = x2 (exact, no free parameter)
+
+# -----------------------------------------------------------------------------
+# Data Ranges (from exploration, 2026-03-10)
+# -----------------------------------------------------------------------------
+data_ranges:
+  u_min: -0.0893
+  u_max:  0.1014
+  u_std:  0.0222
+  x1_min: -0.2138
+  x1_max:  0.2163
+  x1_std:  0.0545
+  x2_min: -68.31
+  x2_max:  65.47
+  x2_std: 16.6561
+  # NOTE: x1 vs x2 scale ratio ≈ 300x → ColumnScaler is mandatory
+
+# -----------------------------------------------------------------------------
+# Data Generation / Windowing Settings
+# -----------------------------------------------------------------------------
+data_generation:
+  # Sliding window parameters
+  W: 500                 # Window length (steps); T = 500 * dt ≈ 0.82 s
+  # At fs=610 Hz, natural freq ≈ sqrt(93283)/(2π) ≈ 49 Hz → ~40 periods per window
+  stride_train: 200      # Stride for train window candidates
+  stride_test: 200       # Stride for test window candidates
+  train_fraction: 0.70   # First 70% of signal for train region
+  # val extracted from train region; test from last 30% of signal
+
+  # Savitzky-Golay derivative estimation
+  savgol_window: 11      # Must be odd; 11 samples ≈ 0.018 s at 610 Hz
+  savgol_polyorder: 3    # Cubic polynomial (standard SINDy protocol)
+  # Edge guard: skip first/last W//2 = 250 samples (SavGol edge effects)
+
+  # Split sizes — n_train=3: extreme low-data regime
+  # Rationale: n=10/5 trivially identified (0-1 fragile pairs at z_thr=2.0)
+  #            n=3 yields 3 fragile pairs (const, x1², x1³) — meaningful low-data regime
+  n_trajectories:
+    train: 3    # Extreme low-data regime (n=10/5 trivially identified)
+    val: 3
+    test: 20
+  master_seed: 42
+  max_state_norm: 300.0  # Trajectory quality threshold for teacher integration
+                         # ≈ 5× max observed ||[x1, x2]|| from real data
+
+# -----------------------------------------------------------------------------
+# Teacher (Duffing ODE for augmentation pool)
+# -----------------------------------------------------------------------------
+teacher:
+  type: duffing_ode
+  u_teacher: 0.0         # u=0 (free damped oscillation); real input not replicated
+  # NOTE: teacher u=0 means pool has no input-direction augmentation.
+  # u feature is identified from real training data (non-zero u), not teacher trajectories.
+  # Rationale: free Duffing from high-amplitude GMM ICs covers real operating space
+  # Stability: c < 0 (damping) + k < 0 (restoring) → all ICs converge
+  rtol: 1.0e-8
+  atol: 1.0e-10
+  max_attempts: 50
+
+# -----------------------------------------------------------------------------
+# SINDy Library (8-term Duffing-informed)
+# -----------------------------------------------------------------------------
+sindy:
+  library: duffing_8term
+  n_features: 8          # {1, x1, x2, x1², x1·x2, x2², x1³, u}
+  n_targets: 2           # {dx1/dt, dx2/dt}
+  threshold: 0.05
+  n_bootstrap: 100
+  # Oracle support — physical EOM:
+  #   dx1/dt = x2               → feature index 2
+  #   dx2/dt = k*x1 + k3*x1³ + c*x2 + b*u → feature indices 1, 2, 6, 7
+  oracle_feature_indices:
+    dx1_dt: [2]          # kinematic identity
+    dx2_dt: [1, 2, 6, 7] # Duffing EOM
+  # NOTE: x2 (idx 2) is oracle for BOTH targets.
+
+# -----------------------------------------------------------------------------
+# Experiment Settings
+# -----------------------------------------------------------------------------
+experiment:
+  gmm_n_components: 2    # IC space is 2D; keep n_components ≤ n_train (=3)
+  gmm_covariance_type: full
+  gmm_seed: 42
+  pool_size: 200
+  n_select: 50           # Trajectories selected for augmentation
+  z_fragile_threshold: 2.0
+  ci_bootstrap_B: 2000
+  ci_alpha: 0.05
+  dopt_lambda: 1.0e-6
+  dopt_n_candidates: 200
+
+# -----------------------------------------------------------------------------
+# Metric
+# -----------------------------------------------------------------------------
+metric:
+  # failure_mode determined at runtime from fragile pair composition
+  # Runtime confirmed (Gate4e-2, n_train=3): mixed
+  #   x1² spurious (z=11.7, dominant) + x1³ recall (z=0.02)
+  # score_aligned = -delta_raw  (precision-collapse dominant; positive = improvement)
+  pass_levels:
+    CEILING_BREAK: "ci_lower > 0.058"
+    STRONG_PASS:   "ci_lower > 0"
+    SOFT_PASS:     "median > 0 and ci_lower <= 0"
+    NULL:          "median <= 0"
+
+# -----------------------------------------------------------------------------
+# Results Path (follows paths.py convention)
+# -----------------------------------------------------------------------------
+paths:
+  dataset_version: silverbox_v1_n3
+  system: silverbox
+  gate: gate4e2

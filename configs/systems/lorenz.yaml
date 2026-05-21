@@ -1,0 +1,129 @@
+# =============================================================================
+# Lorenz System Configuration
+# =============================================================================
+# Model: Standard Lorenz-63 chaotic system
+# State: [x, y, z]  (no control input)
+# OOD parameter: rho (Rayleigh number)
+#
+# Reference: Lorenz, E.N. (1963). Deterministic nonperiodic flow.
+#            J. Atmospheric Sciences, 20(2), 130-141.
+#
+# Equations of motion:
+#   dx/dt = sigma * (y - x)
+#   dy/dt = rho * x - y - x * z
+#   dz/dt = x * y - beta * z
+# =============================================================================
+
+system_name: lorenz
+system_type: autonomous_ode  # No control input
+state_dim: 3                 # [x, y, z]
+input_dim: 0                 # No control input (u stored as zeros for schema)
+
+# -----------------------------------------------------------------------------
+# State Definition
+# -----------------------------------------------------------------------------
+states:
+  - index: 0
+    name: x
+    unit: dimensionless
+    description: "Lorenz x state"
+  - index: 1
+    name: y
+    unit: dimensionless
+    description: "Lorenz y state"
+  - index: 2
+    name: z
+    unit: dimensionless
+    description: "Lorenz z state"
+
+# -----------------------------------------------------------------------------
+# Physical Parameters (SSOT — hardcoding forbidden)
+# -----------------------------------------------------------------------------
+physics:
+  sigma: 10.0       # Prandtl number
+  beta: 2.6667      # 8/3 rounded to 4 decimal places (beta = 8/3 exactly in code)
+  rho_nominal: 28.0 # Nominal Rayleigh number (OOD knob)
+
+# -----------------------------------------------------------------------------
+# OOD Design: rho varies between train and test
+# Physical meaning: different convection intensity
+# SINDy challenge: coefficient of x in dy/dt changes with rho
+# -----------------------------------------------------------------------------
+ood:
+  parameter: initial_conditions   # OOD = different ICs from same attractor
+  # Single rho for all splits (rho is a COEFFICIENT in EOM, not a scale param)
+  # Mixing rho values makes SINDy coefficients undefined → use fixed rho
+  train_rho: [28.0]
+  val_rho: [28.0]
+  test_rho: [28.0]
+  # Note: OOD generalization tested via different initial conditions (not rho).
+  # Rationale: rho directly scales the 'x' coefficient in dy/dt.
+  # Multi-rho training causes structural identifiability failure in SINDy.
+
+# -----------------------------------------------------------------------------
+# Simulation Settings
+# -----------------------------------------------------------------------------
+simulation:
+  dt: 0.01               # Time step (s)
+  T_duration: 5.0        # Trajectory duration (s) — longer for chaos
+  T_steps: 501           # dt * (T_steps-1) = 5.0 s
+  integrator: RK45
+  rtol: 1.0e-8
+  atol: 1.0e-10
+  # Initial condition sampling (on/near attractor)
+  initial_conditions:
+    x: [-15.0, 15.0]
+    y: [-20.0, 20.0]
+    z: [5.0, 40.0]
+
+# -----------------------------------------------------------------------------
+# Data Generation Settings
+# -----------------------------------------------------------------------------
+data_generation:
+  n_trajectories:
+    train: 5     # Low-data regime (key challenge)
+    val: 5
+    test: 15
+  # Quality filter: reject diverging trajectories
+  max_state_norm: 200.0
+  master_seed: 42
+  # Measurement noise (SINDy standard: Brunton 2016)
+  # dx estimated via SavGol from noisy observations
+  noise_std_fraction: 0.05   # 5% of per-state std
+  savgol_window: 7
+  savgol_polyorder: 3
+
+# -----------------------------------------------------------------------------
+# SINDy Library
+# -----------------------------------------------------------------------------
+sindy:
+  library: polynomial_degree2
+  n_features: 10         # {1, x, y, z, x², y², z², xy, xz, yz}
+  n_targets: 3           # {dx/dt, dy/dt, dz/dt}
+  threshold: 0.05
+  n_bootstrap: 100
+  # Oracle support (physical EOM — do not change)
+  # Target 0 (dx/dt): x(1), y(2)
+  # Target 1 (dy/dt): x(1), y(2), xz(8)
+  # Target 2 (dz/dt): z(3), xy(7)
+  oracle_feature_indices:
+    dx_dt: [1, 2]
+    dy_dt: [1, 2, 8]
+    dz_dt: [3, 7]
+
+# -----------------------------------------------------------------------------
+# Validation
+# -----------------------------------------------------------------------------
+validation:
+  # Sanity check: known coefficients at rho=28
+  # dx/dt: -10*x + 10*y
+  # dy/dt: 28*x - y - xz
+  # dz/dt: xy - (8/3)*z
+  expected_coeff_sign:
+    dx_dt_x: negative    # -sigma
+    dx_dt_y: positive    # +sigma
+    dy_dt_x: positive    # +rho (varies with OOD!)
+    dy_dt_y: negative    # -1
+    dy_dt_xz: negative   # -1
+    dz_dt_z: negative    # -beta
+    dz_dt_xy: positive   # +1

@@ -1,0 +1,23 @@
+{
+  "system": "silverbox",
+  "dataset_version": "silverbox_v1_n3",
+  "state_dim": 2,
+  "input_dim": 1,
+  "n_train": 3,
+  "n_val": 3,
+  "n_test": 20,
+  "W": 500,
+  "dt": 0.0016384042100980878,
+  "W_seconds": 0.8192021050490439,
+  "savgol_window": 11,
+  "savgol_polyorder": 3,
+  "train_fraction": 0.7,
+  "master_seed": 42,
+  "duffing_params": {
+    "k": -49676.1248727269,
+    "k3": 12582.559455891533,
+    "c": 2.4594395250642265,
+    "b": -8114.857321881808
+  },
+  "notes": "Real Silverbox measurement data. SNLS80mV multisine excitation. State estimated via SavGol filter. Duffing params fitted from train data."
+}

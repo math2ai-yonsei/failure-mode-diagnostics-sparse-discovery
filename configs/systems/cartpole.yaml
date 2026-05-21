@@ -1,0 +1,140 @@
+# =============================================================================
+# Cart-Pole System Configuration
+# =============================================================================
+# Model: Point mass at pole tip (NOT uniform rod)
+# State: [x, x_dot, theta, theta_dot]
+# Input: Force on cart (N)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Physical Parameters (Default values)
+# -----------------------------------------------------------------------------
+physics:
+  m_cart: 1.0       # Cart mass (kg)
+  m_pole: 0.1       # Pole mass - point mass at tip (kg)
+  L: 0.5            # Pole length to point mass (m)
+  g: 9.81           # Gravity (m/s^2)
+  b_cart: 0.1       # Cart friction coefficient (N·s/m)
+  b_pole: 0.01      # Pole joint friction coefficient (N·m·s/rad)
+
+# -----------------------------------------------------------------------------
+# Simulation Settings
+# -----------------------------------------------------------------------------
+simulation:
+  dt: 0.02          # Time step (s) - 50 Hz
+  duration: 2.0     # Trajectory duration (s)
+  T: 101            # Number of time steps (duration/dt + 1)
+
+# -----------------------------------------------------------------------------
+# Initial State Sampling
+# -----------------------------------------------------------------------------
+initial_state:
+  # Cart position
+  x:
+    min: -0.5
+    max: 0.5
+  # Cart velocity
+  x_dot:
+    min: -1.0
+    max: 1.0
+  # Pole angle (rad) - near unstable equilibrium
+  theta:
+    min: -0.5       # ~-28.6 degrees
+    max: 0.5        # ~28.6 degrees
+  # Pole angular velocity
+  theta_dot:
+    min: -1.0
+    max: 1.0
+
+# -----------------------------------------------------------------------------
+# Controller Settings (for data generation)
+# -----------------------------------------------------------------------------
+controller:
+  type: random_smooth  # Options: zero, random_smooth, sinusoidal
+  # random_smooth parameters
+  random_smooth:
+    amplitude: 5.0      # Max force amplitude (N)
+    frequency: 2.0      # Cutoff frequency for smoothness (Hz)
+    seed: null          # Random seed (null = use global seed)
+
+# -----------------------------------------------------------------------------
+# Condition-Separated Split (OOD Evaluation)
+# -----------------------------------------------------------------------------
+# Train/Val conditions: lighter cart + lighter pole
+# Test conditions: heavier cart + heavier pole (OOD)
+# -----------------------------------------------------------------------------
+conditions:
+  # Training conditions (9 combinations = 3x3)
+  train:
+    m_cart: [1.0, 1.2, 1.4]      # Cart mass (kg)
+    m_pole: [0.08, 0.10, 0.12]   # Pole mass (kg)
+  
+  # Validation conditions (same distribution as train, but separate instances)
+  # Uses train conditions with different trajectories
+  val:
+    m_cart: [1.0, 1.2, 1.4]
+    m_pole: [0.08, 0.10, 0.12]
+  
+  # Test conditions (9 combinations, OOD: heavier masses)
+  test:
+    m_cart: [1.6, 1.8, 2.0]      # OOD: heavier cart
+    m_pole: [0.14, 0.16, 0.18]   # OOD: heavier pole
+
+# -----------------------------------------------------------------------------
+# Data Generation Settings
+# -----------------------------------------------------------------------------
+data_generation:
+  # Number of trajectories per condition
+  n_traj_per_condition:
+    train: 10         # 9 conditions × 10 = 90 trajectories max
+    val: 5            # 9 conditions × 5 = 45 trajectories max
+    test: 10          # 9 conditions × 10 = 90 trajectories max
+  
+  # Subset selection (actual N used in experiments)
+  # Randomly sample from generated pool
+  n_trajectories:
+    train: 50         # Subsample from 90
+    val: 15           # Subsample from 45
+    test: 50          # Use all from specific test conditions
+  
+  # Quality filters (trajectory rejected if exceeded)
+  quality_filters:
+    max_x: 10.0       # Max cart position (m)
+    max_theta: 3.1    # Max pole angle (rad) ~143deg - avoids wrap boundary issues
+    max_velocity: 30.0  # Max velocity (m/s or rad/s)
+    max_attempts: 10  # Max retry attempts per failed trajectory
+  
+  # Random seed for reproducibility
+  master_seed: 42
+
+# -----------------------------------------------------------------------------
+# State Definition (for reference)
+# -----------------------------------------------------------------------------
+state_definition:
+  - index: 0
+    name: x
+    unit: m
+    description: Cart position
+  - index: 1
+    name: x_dot
+    unit: m/s
+    description: Cart velocity
+  - index: 2
+    name: theta
+    unit: rad
+    description: Pole angle from vertical, (-π, π] wrapped
+  - index: 3
+    name: theta_dot
+    unit: rad/s
+    description: Pole angular velocity
+
+# -----------------------------------------------------------------------------
+# Parameter Definition (stored in params array)
+# -----------------------------------------------------------------------------
+param_definition:
+  - index: 0
+    name: m_cart
+    unit: kg
+  - index: 1
+    name: m_pole
+    unit: kg

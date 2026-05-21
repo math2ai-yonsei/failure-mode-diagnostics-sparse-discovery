@@ -1,0 +1,22 @@
+# Gate0 Cart-Pole Experiment Configuration
+# S06: SINDy Baseline Pipeline
+
+# Dataset Settings
+dataset_version: cartpole_ood_v1
+system: cartpole
+
+# Experiment Settings
+n_train: 10           # Number of training trajectories
+seed: 0               # Random seed for reproducibility
+track: standardized   # 'standardized' (Savgol dx) or 'author_recommended' (analytic dx)
+note: base            # Note for run_id
+
+# SINDy Settings
+library_config: gate0_min  # Library configuration from LIBRARY_CONFIGS
+threshold: 0.01            # STLSQ sparsity threshold
+max_iter: 10               # Maximum STLSQ iterations
+ridge_alpha: 0.0           # Ridge regularization (0 = no regularization)
+
+# Fixed Settings (do not modify)
+gate: gate0
+method: sindy

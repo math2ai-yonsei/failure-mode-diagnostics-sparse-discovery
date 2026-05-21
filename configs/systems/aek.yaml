@@ -1,0 +1,274 @@
+# =============================================================================
+# AEK Self-balancing Motorcycle System Configuration
+# =============================================================================
+# Source: MathWorks Arduino Engineering Kit Rev2 Project Files
+#         exercise_6_1/modelParameters.m + CADcomponentParameters.m
+# Verified: 2026-02-05 (MATLAB R2024b numerical check)
+# Updated: 2026-02-07 (sindy library 17→14 terms per GPT review)
+# =============================================================================
+
+system_name: "AEK Self-balancing Motorcycle"
+system_type: "Reaction Wheel Inverted Pendulum (1D Roll)"
+state_dim: 4   # [phi, phi_dot, theta_w, theta_w_dot]
+input_dim: 1   # [tau] motor torque
+
+# =============================================================================
+# NOTATION MAPPING (Source ↔ This Project)
+# =============================================================================
+# The MathWorks/Arduino official documentation uses:
+#   theta = lean angle,  phi = wheel angle (absolute)
+#
+# This project uses (consistent with Extension Plan v1, CP Instructions v4.0):
+#   phi = lean angle,  theta_w = wheel angle (RELATIVE to body)
+#
+# Mapping:
+#   Source theta     → Our phi        (lean/roll angle)
+#   Source phi_abs   → Our theta_w    (wheel angle, relative)
+#   Source I_w_C     → Our I_w        (wheel spin inertia, OOD knob)
+#   Source I_r_A + m_w*l_AC^2 → Our I_p (total pivot inertia)
+#
+# Note: Earlier project documents used "I_b" for the pivot inertia.
+#       I_b ≡ I_p (they are the same quantity). This file uses I_p
+#       as it more accurately describes "pivot-axis inertia" rather
+#       than "body-only inertia" (which would exclude wheel mass contribution).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# State variable definitions
+# -----------------------------------------------------------------------------
+states:
+  - name: "phi"
+    index: 0
+    unit: "rad"
+    description: "Lean/roll angle (body tilt from vertical, + = CCW viewed from behind)"
+  - name: "phi_dot"
+    index: 1
+    unit: "rad/s"
+    description: "Lean angular velocity"
+  - name: "theta_w"
+    index: 2
+    unit: "rad"
+    description: "Reaction wheel angle (RELATIVE to body frame, + = CCW)"
+  - name: "theta_w_dot"
+    index: 3
+    unit: "rad/s"
+    description: "Reaction wheel angular velocity (relative)"
+
+inputs:
+  - name: "tau"
+    index: 0
+    unit: "N*m"
+    description: "Motor torque applied TO the reaction wheel (+CCW). Reaction on body = -tau."
+
+# -----------------------------------------------------------------------------
+# Physical parameters (MathWorks official values)
+# -----------------------------------------------------------------------------
+# Source file: exercise_6_1/modelParameters.m
+# Copyright 2018-2020, The MathWorks Inc.
+# Local path: C:\MATLAB_work\AEK_motorcycle_project\exercise_6_1\modelParameters.m
+# -----------------------------------------------------------------------------
+physics:
+  g: 9.80665              # [m/s^2] gravitational acceleration
+
+  rod:   # "rod" = motorcycle body (frame + electronics + battery)
+    mass_kg: 0.2948        # m_r in modelParameters.m (line 5)
+    length_m: 0.13         # l (= l_AD = l_AC) (line 10)
+    cross_section_radius_m: 0.02  # r (line 9)
+    com_height_m: 0.065    # l_AB = l/2 (center of mass from pivot) (line 13)
+
+  wheel:  # inertia wheel (flywheel)
+    mass_kg: 0.0695        # m_w in modelParameters.m (line 7)
+    radius_m: 0.05         # R (line 8)
+    mount_height_m: 0.13   # l_AC (= l, mounted at top of rod) (line 14)
+
+  # CAD component masses (for reference / cross-check)
+  # Source: exercise_6_1/CADcomponentParameters.m
+  # Note: CAD total (430g) differs from simulation model (364.3g) because
+  #       the simulation uses a simplified rod+wheel lumped parameter model.
+  cad_components:
+    frame_kg: 0.172
+    inertia_wheel_kg: 0.075
+    motor_kg: 0.061
+    battery_kg: 0.044
+    front_wheel_kg: 0.030
+    rear_wheel_kg: 0.030
+    steering_kg: 0.018
+    total_kg: 0.430
+
+# -----------------------------------------------------------------------------
+# Derived inertia parameters (computed from above, MATLAB-verified)
+# -----------------------------------------------------------------------------
+# Notation follows MathWorks modelParameters.m (source variable names)
+# Pivot = wheel-ground contact axis (point A)
+# -----------------------------------------------------------------------------
+inertia:
+  # Inertia wheel about its own spin axis (C)
+  # This is the OOD knob parameter
+  I_w_C: 8.6875e-05       # [kg*m^2] = 0.5 * m_w * R^2
+
+  # Inertia wheel about pivot (A), parallel axis theorem
+  I_w_A: 1.261425e-03     # [kg*m^2] = I_w_C + m_w * l_AC^2
+
+  # Rod about its own center (B), thin cylinder
+  I_r_B: 4.446567e-04     # [kg*m^2] = (1/12) * m_r * (3*r^2 + l^2)
+
+  # Rod about pivot (A), parallel axis theorem
+  I_r_A: 1.690187e-03     # [kg*m^2] = I_r_B + m_r * l_AB^2
+
+  # Total system about pivot (for phi equation)
+  # I_p = I_r_A + m_w * l_AC^2  (NOT I_r_A + I_w_A; avoids double-counting I_w_C)
+  # Note: Earlier docs used "I_b" for this quantity. I_b ≡ I_p.
+  I_p: 2.864737e-03       # [kg*m^2]
+
+# -----------------------------------------------------------------------------
+# Composite dynamics parameters
+# -----------------------------------------------------------------------------
+dynamics:
+  M_total_kg: 0.3643      # m_r + m_w
+  h_cm_m: 0.07740         # (m_r*l_AB + m_w*l_AC) / M_total  [MATLAB verified]
+
+  # Linearized natural frequency (unstable mode)
+  omega_n_rad_s: 9.82     # sqrt(M*g*h_cm / I_p)
+  time_to_fall_s: 0.102   # 1/omega_n
+
+  # Wheel-to-system inertia ratio (control authority indicator)
+  I_w_C_over_I_p: 0.0303  # Small = limited control authority
+
+# -----------------------------------------------------------------------------
+# Equations of motion (project convention: phi=lean, theta_w=wheel relative)
+# -----------------------------------------------------------------------------
+# phi_ddot     = (M_total * g * h_cm * sin(phi) - tau) / I_p
+# theta_w_ddot = tau / I_w_C - phi_ddot
+#
+# State: x = [phi, phi_dot, theta_w, theta_w_dot]
+# dx/dt = [phi_dot,
+#          (M_total * g * h_cm * sin(phi) - tau) / I_p,
+#          theta_w_dot,
+#          tau / I_w_C - (M_total * g * h_cm * sin(phi) - tau) / I_p]
+#
+# Physical interpretation:
+#   - Gravity torque M*g*h*sin(phi) destabilizes the body (+ direction)
+#   - Motor torque tau accelerates the wheel; reaction -tau decelerates the body
+#   - theta_w is RELATIVE: theta_w_ddot includes coupling term -phi_ddot
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# OOD configuration
+# -----------------------------------------------------------------------------
+# Strategy: Vary I_w_C by changing wheel mass (m_w), keeping R fixed
+# Physical basis: swapping flywheel to lighter/heavier version
+# Nominal I_w_C = 8.6875e-5 corresponds to m_w = 69.5g, R = 5cm
+# I_w_C = 0.5 * m_w * R^2, so m_w = 2 * I_w_C / R^2
+#
+# Paper wording: "OOD is induced by swapping the flywheel assembly, which
+#   primarily changes the wheel spin inertia I_w; derived quantities
+#   (total mass, COM height, and pivot inertia) are recomputed accordingly."
+# -----------------------------------------------------------------------------
+ood:
+  parameter: "I_w_C"
+  parameter_description: "Reaction wheel moment of inertia (spin axis)"
+  unit: "kg*m^2"
+
+  # --- Tier-A: Main (paper-safe, comparable to Cart-Pole OOD ratio) ---
+  # Cart-Pole OOD ratio: test/max(train) = 0.5/0.4 = 1.25x
+  # AEK Tier-A ratio: 1.04e-4 / 8.7e-5 = 1.20x (comparable)
+  main:
+    train_conditions: [6.95e-05, 8.6875e-05]
+    # 6.95e-5: m_w=55.6g  (0.8x nominal, lighter flywheel)
+    # 8.69e-5: m_w=69.5g  (1.0x nominal, MathWorks default)
+    test_conditions: [1.04e-04]
+    # 1.04e-4: m_w=83.2g  (1.2x nominal, heavier flywheel)
+    extrapolation_ratio: 1.20
+
+  # --- Tier-B: Stress (stronger OOD, appendix/supplementary) ---
+  # AEK Tier-B ratio: 1.4e-4 / 8.7e-5 = 1.61x (harder benchmark)
+  stress:
+    train_conditions: [5.0e-05, 8.7e-05]
+    # 5.0e-5: m_w=40g   (0.58x nominal)
+    # 8.7e-5: m_w=69.5g (1.0x nominal)
+    test_conditions: [1.4e-04]
+    # 1.4e-4: m_w=112g  (1.61x nominal)
+    extrapolation_ratio: 1.61
+
+  # When I_w_C changes, simulator must recompute:
+  # - m_w_new = 2 * I_w_C_new / R^2
+  # - I_w_A   = I_w_C_new + m_w_new * l_AC^2
+  # - I_p     = I_r_A + m_w_new * l_AC^2
+  # - M_total = m_r + m_w_new
+  # - h_cm    = (m_r * l_AB + m_w_new * l_AC) / M_total
+
+# -----------------------------------------------------------------------------
+# Simulation settings
+# -----------------------------------------------------------------------------
+simulation:
+  dt: 0.01                # [s] integration timestep (halved from 0.02 for safety)
+                           # omega_n=9.82 rad/s → Nyquist requires dt << 0.32s
+                           # dt=0.01 gives ~32 samples per natural period
+  T_steps: 201            # number of timesteps (= 2.0s trajectory)
+  T_duration: 2.0         # [s] total simulation time
+  integrator: "RK45"      # scipy.integrate.solve_ivp method
+
+  # Initial condition ranges (for dataset generation)
+  # Convention: phi=lean, theta_w=wheel (relative)
+  initial_conditions:
+    phi:           [-0.15, 0.15]     # [rad] ~8.6 deg lean
+    phi_dot:       [-1.0, 1.0]       # [rad/s]
+    theta_w:       [-1.0, 1.0]       # [rad] wheel relative angle
+    theta_w_dot:   [-10.0, 10.0]     # [rad/s]
+
+  # Control input range
+  input_range:
+    tau: [-0.02, 0.02]              # [N*m]
+
+  # Dataset split
+  n_trajectories:
+    train: 10
+    val: 5
+    test: 10
+
+# -----------------------------------------------------------------------------
+# Motor specifications (estimated from kit hardware)
+# -----------------------------------------------------------------------------
+motor:
+  type: "DC motor with encoder"
+  max_torque_Nm: 0.02
+  max_speed_rad_s: 100
+  note: "Motor K_t not published; simulation uses direct torque input"
+
+# -----------------------------------------------------------------------------
+# SINDy library configuration (for E-SINDy)
+# -----------------------------------------------------------------------------
+# Convention: phi=lean, theta_w=wheel (project standard)
+# Updated: 2026-02-07 (GPT review: removed phi, theta_w, phi^2 → 14 terms)
+# Rationale:
+#   phi removed: collinear with sin(phi) at ±3° operating range
+#   theta_w removed: ±100 rad drift, not in EOM (relative angle unbounded)
+#   phi^2 removed: not in oracle, negligible at small angles
+sindy:
+  library_functions:
+    - "1"
+    - "phi_dot"
+    - "theta_w_dot"
+    - "tau"
+    - "sin(phi)"
+    - "cos(phi)"
+    - "phi_dot^2"
+    - "theta_w_dot^2"
+    - "tau^2"
+    - "phi*phi_dot"
+    - "phi*tau"
+    - "phi_dot*tau"
+    - "theta_w_dot*tau"
+    - "sin(phi)*tau"
+
+# -----------------------------------------------------------------------------
+# Validation status
+# -----------------------------------------------------------------------------
+validation:
+  parameters: "MATLAB-verified (2026-02-05)"
+  sign_convention: "pending"    # Simulink step-response check not yet done
+  simulink_cross_val: "pending" # Python vs Simulink trajectory comparison
+  notes:
+    - "Parameter values verified against modelParameters.m output"
+    - "Sign convention table matches Arduino official docs (aek.arduino.cc)"
+    - "Simulink stateSpace0.slx tau port direction check: TODO at AEK-1 cross-val"

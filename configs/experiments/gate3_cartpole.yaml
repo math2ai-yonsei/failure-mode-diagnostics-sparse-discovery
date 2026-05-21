@@ -1,0 +1,95 @@
+# Gate3 Cart-Pole Generative Augmentation Configuration
+# Version: v1.0 (Lock-compliant)
+
+# === Basic Info ===
+gate: gate3
+dataset_version: cartpole_ood_v1
+system: cartpole
+track: standardized
+n_train: 10
+note: base
+
+# === Seeds (Lock-1: unified block) ===
+seeds:
+  data: 0
+  vae: 0
+  gen: 0
+
+# === Method ===
+method: generative
+aug_method: vae_align
+
+# === Augmentation ===
+augmentation:
+  aug_ratio: 1.0
+  dx_policy: savgol
+  derivative_params:
+    window: 11
+    polyorder: 3
+
+# === Generator (VAE) ===
+generator:
+  model: TrajectoryVAE
+  latent_dim: 8
+  hidden_dim: 128
+  epochs: 100
+  lr: 1.0e-3
+  batch_size: 32
+  beta_schedule:
+    start: 0.01
+    end: 0.5
+    warmup_epochs: 30
+  n_generate: 100
+  n_select: 10
+  temperature: 1.0
+
+# === Teacher (Gate1 E-SINDy) ===
+teacher:
+  source_run_id: null
+  frozen: true
+  library_config: gate0_min
+  expected_track: null
+  expected_n_train: null
+  expected_data_seed: null
+
+# === Filtering ===
+filtering:
+  sanity_on: true
+  dedup_on: true
+  dedup_threshold: 0.01
+  align_filter_on: true
+  align_mode: topk
+  topk: 10
+  align_threshold: 0.1
+  align_score_definition: "mean_t || dx_aug - Theta(x_aug, u_aug) @ Xi_bar ||^2"
+  insufficient_policy: fail
+  max_retry: 3
+
+# === Evaluation (Lock-5: simplified) ===
+evaluation:
+  n_bootstrap: 20
+  threshold_grid:
+    - 0.0
+    - 0.0001
+    - 0.0005
+    - 0.001
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+  best_threshold_policy: val_r2_then_sparsity
+  val_r2_tolerance: 0.002
+  evaluator_swap: false
+
+# === Artifacts ===
+artifacts:
+  save_aug_samples: true
+  save_aug_manifest: true
+  save_figures: true
+  save_context_packet: true
+
+# === Baseline Comparison (Lock-2) ===
+comparison:
+  gate1_baseline_run_id: null
+  gate2_baseline_run_id: null
+  mismatch_action: fail

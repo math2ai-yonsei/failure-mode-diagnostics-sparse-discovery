@@ -1,0 +1,249 @@
+{
+  "version": "cartpole_ood_v1",
+  "system": "cartpole",
+  "created_at": "2025-12-27T03:02:08.344581",
+  "config_path": "C:\\python_work\\PhD_project\\configs\\systems\\cartpole.yaml",
+  "physics": {
+    "m_cart": 1.0,
+    "m_pole": 0.1,
+    "L": 0.5,
+    "g": 9.81,
+    "b_cart": 0.1,
+    "b_pole": 0.01
+  },
+  "simulation": {
+    "dt": 0.02,
+    "duration": 2.0,
+    "T": 101
+  },
+  "conditions": {
+    "train": {
+      "m_cart": [
+        1.0,
+        1.2,
+        1.4
+      ],
+      "m_pole": [
+        0.08,
+        0.1,
+        0.12
+      ]
+    },
+    "val": {
+      "m_cart": [
+        1.0,
+        1.2,
+        1.4
+      ],
+      "m_pole": [
+        0.08,
+        0.1,
+        0.12
+      ]
+    },
+    "test": {
+      "m_cart": [
+        1.6,
+        1.8,
+        2.0
+      ],
+      "m_pole": [
+        0.14,
+        0.16,
+        0.18
+      ]
+    }
+  },
+  "data_generation": {
+    "n_traj_per_condition": {
+      "train": 10,
+      "val": 5,
+      "test": 10
+    },
+    "n_trajectories": {
+      "train": 50,
+      "val": 15,
+      "test": 50
+    },
+    "quality_filters": {
+      "max_x": 10.0,
+      "max_theta": 3.1,
+      "max_velocity": 30.0,
+      "max_attempts": 10
+    },
+    "master_seed": 42
+  },
+  "statistics": {
+    "n_train": 50,
+    "n_val": 15,
+    "n_test": 50,
+    "T": 101,
+    "dt": 0.02,
+    "state_dim": 4,
+    "input_dim": 1,
+    "param_dim": 2,
+    "acceptance_rate": 0.27629911280101394,
+    "rejection_reasons": {
+      "max_theta_exceeded": 571
+    }
+  },
+  "state_definition": [
+    {
+      "index": 0,
+      "name": "x",
+      "unit": "m",
+      "description": "Cart position"
+    },
+    {
+      "index": 1,
+      "name": "x_dot",
+      "unit": "m/s",
+      "description": "Cart velocity"
+    },
+    {
+      "index": 2,
+      "name": "theta",
+      "unit": "rad",
+      "description": "Pole angle from vertical, (-π, π] wrapped"
+    },
+    {
+      "index": 3,
+      "name": "theta_dot",
+      "unit": "rad/s",
+      "description": "Pole angular velocity"
+    }
+  ],
+  "param_definition": [
+    {
+      "index": 0,
+      "name": "m_cart",
+      "unit": "kg"
+    },
+    {
+      "index": 1,
+      "name": "m_pole",
+      "unit": "kg"
+    }
+  ],
+  "s03_savgol": {
+    "added_at": "2025-12-29T02:17:50.028225",
+    "savgol_config": {
+      "window": 11,
+      "polyorder": 3
+    },
+    "comparison_results": {
+      "train": {
+        "x_dot": {
+          "rmse": 0.002087969134965718,
+          "mae": 0.001384821322177238,
+          "max_error": 0.03677787578668368,
+          "r2": 0.9999910949458202
+        },
+        "x_ddot": {
+          "rmse": 0.12903183673551502,
+          "mae": 0.10087299025873739,
+          "max_error": 0.7679239353767024,
+          "r2": 0.9897744700627987
+        },
+        "theta_dot": {
+          "rmse": 0.006057940034592873,
+          "mae": 0.0028171291987084566,
+          "max_error": 0.12357066398079652,
+          "r2": 0.9999982279866121
+        },
+        "theta_ddot": {
+          "rmse": 0.20393108897272222,
+          "mae": 0.13548032609844818,
+          "max_error": 3.1991313442957967,
+          "r2": 0.9998061904357485
+        }
+      },
+      "val": {
+        "x_dot": {
+          "rmse": 0.0022048545850373415,
+          "mae": 0.001473254918739158,
+          "max_error": 0.034094911506321046,
+          "r2": 0.9999917828824201
+        },
+        "x_ddot": {
+          "rmse": 0.13094271269414032,
+          "mae": 0.10272859864509842,
+          "max_error": 0.5563536635688006,
+          "r2": 0.9891709387144243
+        },
+        "theta_dot": {
+          "rmse": 0.00618059680029067,
+          "mae": 0.002907399866854697,
+          "max_error": 0.1207349691727515,
+          "r2": 0.9999982291188155
+        },
+        "theta_ddot": {
+          "rmse": 0.1889330981380605,
+          "mae": 0.12854534233201625,
+          "max_error": 0.9463999345138925,
+          "r2": 0.9998501776562675
+        }
+      },
+      "test": {
+        "x_dot": {
+          "rmse": 0.0018053926379987776,
+          "mae": 0.0010839012781669766,
+          "max_error": 0.024971347149641332,
+          "r2": 0.9999908344321824
+        },
+        "x_ddot": {
+          "rmse": 0.0874742564020531,
+          "mae": 0.06835591122983213,
+          "max_error": 0.6235167224163842,
+          "r2": 0.9944695799844401
+        },
+        "theta_dot": {
+          "rmse": 0.00756138973074071,
+          "mae": 0.002949250833012042,
+          "max_error": 0.11814688322185951,
+          "r2": 0.9999974550064281
+        },
+        "theta_ddot": {
+          "rmse": 0.15461848340556314,
+          "mae": 0.10216500412606264,
+          "max_error": 2.902981084425212,
+          "r2": 0.999889149997097
+        }
+      }
+    },
+    "wrap_check": {
+      "train": {
+        "n_near_boundary": 189,
+        "n_spikes": 0,
+        "n_boundary_spikes": 0,
+        "has_issues": false,
+        "max_theta_ddot": 0.5042481769618457
+      },
+      "val": {
+        "n_near_boundary": 67,
+        "n_spikes": 0,
+        "n_boundary_spikes": 0,
+        "has_issues": false,
+        "max_theta_ddot": 0.47157293363726716
+      },
+      "test": {
+        "n_near_boundary": 168,
+        "n_spikes": 0,
+        "n_boundary_spikes": 0,
+        "has_issues": false,
+        "max_theta_ddot": 0.5116093082895867
+      }
+    }
+  },
+  "s04_norm_stats": {
+    "added_at": "2025-12-29T03:21:14.310407",
+    "computed_from": "train",
+    "keys_used": [
+      "train_x",
+      "train_u",
+      "train_dx",
+      "train_dx_savgol"
+    ],
+    "norm_stats_path": "C:\\python_work\\PhD_project\\data\\cartpole\\cartpole_ood_v1\\norm_stats.json"
+  }
+}

@@ -1,0 +1,21 @@
+# Direct third-party dependencies of the reproducibility package.
+#
+# These six packages are the only third-party imports in the codebase; all
+# other imports are from the Python standard library. The lower bounds are
+# conservative minimums.
+#
+# This file lists the DIRECT dependencies only. For an exact, fully pinned
+# environment (including transitive dependencies), generate a separate lock
+# file in the working environment:
+#
+#     pip freeze > requirements-lock.txt
+#
+# Do not overwrite this file with `pip freeze` output -- keep the direct
+# dependency list here and the pinned environment in requirements-lock.txt.
+
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3
+matplotlib>=3.7
+PyYAML>=6.0
+pytest>=7.4

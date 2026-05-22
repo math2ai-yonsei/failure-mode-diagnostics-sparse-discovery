@@ -9,13 +9,10 @@ authors:
     affiliation: "Department of Artificial Intelligence, Yonsei University, Seoul, Republic of Korea"
     email: math2ai@yonsei.ac.kr
 version: 1.0.0
-# date-released: replace with the actual release date (YYYY-MM-DD format)
-date-released: "REPLACE-RELEASE-DATE"
+date-released: "2026-05-22"
 license: MIT
-# repository-code: replace with the public GitHub URL once the repository is created
 repository-code: "https://github.com/math2ai-yonsei/failure-mode-diagnostics-sparse-discovery"
-# doi: replace with the Zenodo concept/version DOI once the release is archived
-doi: "10.5281/zenodo.REPLACE"
+doi: "10.5281/zenodo.20337198"
 keywords:
   - sparse dynamics discovery
   - ensemble SINDy
